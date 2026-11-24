@@ -1,0 +1,23 @@
+name: CI Build and Validate
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare dummy .env for compose validation
+        run: cp .env.example .env
+
+      - name: Validate docker-compose.yml syntax
+        run: docker compose config -q
+
+      - name: Build Docker image
+        run: docker build -t myapp:test .

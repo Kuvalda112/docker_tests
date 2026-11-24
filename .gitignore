@@ -1,0 +1,10 @@
+.env
+nginx/ssl/
+
+
+# Python кэш и окружения
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
