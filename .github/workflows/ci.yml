@@ -15,8 +15,10 @@ jobs:
 
       - name: 2. Проверяем синтаксис docker-compose.yml
         run: |
+          echo "Создаем тестовый .env из шаблона..."
+          cp .enc.example .env
           echo "Проверяем конфиг Compose..."
-          docker-compose -f docker-compose.yml config -q
+          docker compose -f docker-compose.yml config -q
           echo "Синтаксис в порядке!"
 
       - name: 3. Тестовая сборка Docker-образа
@@ -41,7 +43,7 @@ jobs:
       - name: 2. Пересобираем и перезапускаем контейнеры
         run: |
           cd /home/sa/docker-app
-          docker-compose up -d --build
+          docker compose up -d --build
           docker image prune -f
           echo "Деплой успешно завершен!"
 
