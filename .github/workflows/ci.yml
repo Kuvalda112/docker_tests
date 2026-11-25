@@ -43,7 +43,7 @@ jobs:
       - name: 2. Пересобираем и перезапускаем контейнеры
         run: |
           cd /home/sa/docker-app
-          docker compose up -d --build
+          docker-compose up -d --build
           docker image prune -f
           echo "Деплой успешно завершен!"
 
