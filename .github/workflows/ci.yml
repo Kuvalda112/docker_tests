@@ -16,7 +16,7 @@ jobs:
       - name: 2. Проверяем синтаксис docker-compose.yml
         run: |
           echo "Создаем тестовый .env из шаблона..."
-          cp .enc.example .env
+          cp .env.example .env
           echo "Проверяем конфиг Compose..."
           docker compose -f docker-compose.yml config -q
           echo "Синтаксис в порядке!"
