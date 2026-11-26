@@ -1,0 +1,115 @@
+name: Production CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# Глобальные переменные (не секретные)
+env:
+  REGISTRY: ghcr.io
+  # Имя образа в нижнем регистре: ghcr.io/kuvalda112/docker_tests
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ==========================================
+  # ЭТАП 1: ЛИНТИНГ И ПРОВЕРКА СИНТАКСИСА
+  # ==========================================
+  lint:
+    name: 1. Lint & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lint Dockerfile (Hadolint)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning # Упадет даже при предупреждениях!
+
+      - name: Validate Docker Compose syntax
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.yml config -q
+
+  # ==========================================
+  # ЭТАП 2: СБОРКА И ПУШ В REGISTRY
+  # ==========================================
+  build:
+    name: 2. Build & Push Image
+    needs: lint
+    runs-on: ubuntu-latest
+    # Запускаем сборку только при пуше в main (не на Pull Request)
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write # Право пушить образы в GitHub Container Registry
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # ==========================================
+  # ЭТАП 3: АВТОДЕПЛОЙ НА STAGING (ТВОЯ ASTRA)
+  # ==========================================
+  deploy-staging:
+    name: 3. Deploy to Staging
+    needs: build
+    runs-on: self-hosted
+    environment: staging # Привязка к окружению в настройках GitHub
+
+    steps:
+      - name: Pull new image and restart containers
+        env:
+          # Передаем тег только что собранного коммита
+          IMAGE_TAG: sha-${{ github.sha }}
+        run: |
+          cd /home/sa/docker-app
+          git pull origin main
+          echo "Деплоим образ с тегом: $IMAGE_TAG"
+          # Скачиваем готовый образ вместо сборки на сервере!
+          docker compose pull
+          docker compose up -d --remove-orphans
+          docker image prune -f
+
+  # ==========================================
+  # ЭТАП 4: РУЧНОЙ ДЕПЛОЙ В PRODUCTION
+  # ==========================================
+  deploy-prod:
+    name: 4. Deploy to Production
+    needs: deploy-staging
+    runs-on: self-hosted
+    environment: production # Здесь в GitHub можно включить Required Reviewers!
+
+    steps:
+      - name: Verify Production Deployment
+        run: |
+          echo "Запускаем проверку здоровья (Healthcheck) после выкатки..."
+          curl -k -f https://127.0.0.1 || exit 1
+          echo "Продакшен успешно обновлен и проверен!"

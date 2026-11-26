@@ -15,7 +15,7 @@ services:
       - frontend
 
   backend:
-    build: .
+    image: ghcr.io/kuvalda112/docker_tests:latest
     container_name: app-backend
     restart: unless-stopped
     environment:
