@@ -94,8 +94,8 @@ jobs:
           git pull origin main
           echo "Деплоим образ с тегом: $IMAGE_TAG"
           # Скачиваем готовый образ вместо сборки на сервере!
-          docker compose pull
-          docker compose up -d --remove-orphans
+          docker-compose pull
+          docker-compose up -d --remove-orphans
           docker image prune -f
 
   # ==========================================
